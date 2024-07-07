@@ -1,0 +1,1374 @@
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "id": "A3fQeIpO-FBu"
+      },
+      "outputs": [],
+      "source": [
+        "import os\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import shutil\n",
+        "import sys\n",
+        "import tqdm.notebook as tq\n",
+        "from collections import defaultdict\n",
+        "\n",
+        "import torch\n",
+        "import torch.nn as nn\n",
+        "\n",
+        "device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "metadata": {
+        "id": "tJbr23I-cgUA"
+      },
+      "outputs": [],
+      "source": [
+        "df = pd.read_csv(\"/mnt/Data/sarmistha/Sarmistha/Complaint_mining/overall Dataset - Copy of 2nd Phase Annotation.csv\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "metadata": {
+        "id": "NC3Gh-H3hgz9"
+      },
+      "outputs": [],
+      "source": [
+        "# df = df.sample(1000, random_state=42)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 4,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 642
+        },
+        "id": "kuzpWCvkfArb",
+        "outputId": "daaf5903-36b2-4165-f23d-2658dc145114"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>Full Complaint</th>\n",
+              "      <th>Complaint/Non Complaint</th>\n",
+              "      <th>Service</th>\n",
+              "      <th>Negligence</th>\n",
+              "      <th>Behaviour</th>\n",
+              "      <th>Cleanliness</th>\n",
+              "      <th>Pharmacy</th>\n",
+              "      <th>Unprofessionalism</th>\n",
+              "      <th>Inefficiency</th>\n",
+              "      <th>Unavailibility</th>\n",
+              "      <th>Billing</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>Very poor hospital no care kabhi mat jana if u...</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>Eyeq hospital Haldwani, uttarakhand, my mother...</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>I had my retina appointment here with Dr. M M ...</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>Third class experience. At the age of 73 my mo...</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>Please don’t go for lasik at eye q because I h...</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>Complaint</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "      <td>NaN</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "                                      Full Complaint Complaint/Non Complaint  \\\n",
+              "0  Very poor hospital no care kabhi mat jana if u...               Complaint   \n",
+              "1  Eyeq hospital Haldwani, uttarakhand, my mother...               Complaint   \n",
+              "2  I had my retina appointment here with Dr. M M ...               Complaint   \n",
+              "3  Third class experience. At the age of 73 my mo...               Complaint   \n",
+              "4  Please don’t go for lasik at eye q because I h...               Complaint   \n",
+              "\n",
+              "     Service Negligence Behaviour Cleanliness Pharmacy Unprofessionalism  \\\n",
+              "0  Complaint        NaN       NaN         NaN      NaN               NaN   \n",
+              "1  Complaint        NaN       NaN         NaN      NaN         Complaint   \n",
+              "2  Complaint        NaN       NaN         NaN      NaN         Complaint   \n",
+              "3  Complaint  Complaint       NaN         NaN      NaN               NaN   \n",
+              "4  Complaint        NaN       NaN         NaN      NaN               NaN   \n",
+              "\n",
+              "  Inefficiency Unavailibility Billing  \n",
+              "0    Complaint            NaN     NaN  \n",
+              "1          NaN            NaN     NaN  \n",
+              "2          NaN            NaN     NaN  \n",
+              "3    Complaint            NaN     NaN  \n",
+              "4          NaN            NaN     NaN  "
+            ]
+          },
+          "execution_count": 4,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "df.head()"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 5,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "AF0QX04td5mm",
+        "outputId": "6d72a825-e11c-4b4d-96a7-7b3cd3f228ce"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "(5415, 11)"
+            ]
+          },
+          "execution_count": 5,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "df.shape"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "metadata": {
+        "id": "n1EgRJawfBnr"
+      },
+      "outputs": [],
+      "source": [
+        "for j in range(1,len(df.iloc[0])):\n",
+        "  for i in range(len(df)):\n",
+        "    if df.iloc[i,j] == \"Complaint\":\n",
+        "      df.iloc[i,j] = 1\n",
+        "    elif df.iloc[i,j] == \"Non Complaint\":\n",
+        "      df.iloc[i,j] = 2\n",
+        "    else:\n",
+        "      df.iloc[i,j] = 0"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 7,
+      "metadata": {
+        "id": "axxyHrl6igA4"
+      },
+      "outputs": [],
+      "source": [
+        "df.drop(columns=[ \"Complaint/Non Complaint\"], axis=1, inplace=True)\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "metadata": {
+        "id": "LL8VP__2jhU5"
+      },
+      "outputs": [],
+      "source": [
+        "\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "# split into train and test\n",
+        "df_train, df_test = train_test_split(df, random_state=77, test_size=0.30, shuffle=True)\n",
+        "# split test into test and validation datasets\n",
+        "df_test, df_valid = train_test_split(df_test, random_state=88, test_size=0.50, shuffle=True)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 9,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "COqMpb8nj_CM",
+        "outputId": "e136c676-a40a-4cb8-fd88-8a6f3eb8ac63"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Train: (3790, 10), Test: (812, 10), Valid: (813, 10)\n"
+          ]
+        }
+      ],
+      "source": [
+        "print(f\"Train: {df_train.shape}, Test: {df_test.shape}, Valid: {df_valid.shape}\")\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 10,
+      "metadata": {
+        "id": "0fwwOhO2kNUN"
+      },
+      "outputs": [],
+      "source": [
+        "\n",
+        "MAX_LEN = 512\n",
+        "TRAIN_BATCH_SIZE = 16\n",
+        "VALID_BATCH_SIZE = 16\n",
+        "TEST_BATCH_SIZE = 16\n",
+        "EPOCHS = 5\n",
+        "LEARNING_RATE = 1e-05\n",
+        "THRESHOLD = 0.5 # threshold for the sigmoid"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 11,
+      "metadata": {
+        "id": "VkwHXWillLeK"
+      },
+      "outputs": [
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html\n",
+            "  from .autonotebook import tqdm as notebook_tqdm\n"
+          ]
+        }
+      ],
+      "source": [
+        "from transformers import BertTokenizer, BertModel\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 12,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 654
+        },
+        "id": "BN73PlQZlNM9",
+        "outputId": "1928cf91-c4f6-4b4e-97f2-3891bf237804"
+      },
+      "outputs": [],
+      "source": [
+        "tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 13,
+      "metadata": {
+        "id": "kss5MZfflOw9"
+      },
+      "outputs": [],
+      "source": [
+        "# Test the tokenizer\n",
+        "test_text = \"We are testing BERT tokenizer.\"\n",
+        "# generate encodings\n",
+        "encodings = tokenizer.encode_plus(test_text,\n",
+        "                                  add_special_tokens = True,\n",
+        "                                  max_length = 50,\n",
+        "                                  truncation = True,\n",
+        "                                  padding = \"max_length\",\n",
+        "                                  return_attention_mask = True,\n",
+        "                                  return_tensors = \"pt\")\n",
+        "# we get a dictionary with three keys (see: https://huggingface.co/transformers/glossary.html)\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 14,
+      "metadata": {
+        "id": "n22UnXv7lVNs"
+      },
+      "outputs": [],
+      "source": [
+        "class CustomDataset(torch.utils.data.Dataset):\n",
+        "    def __init__(self, df, tokenizer, max_len, target_list):\n",
+        "        self.tokenizer = tokenizer\n",
+        "        self.df = df\n",
+        "        self.title = list(df['Full Complaint'])\n",
+        "        self.targets = self.df[target_list].values\n",
+        "        self.max_len = max_len\n",
+        "\n",
+        "    def __len__(self):\n",
+        "        return len(self.title)\n",
+        "\n",
+        "    def __getitem__(self, index):\n",
+        "      title = str(self.title[index])\n",
+        "      title = \" \".join(title.split())\n",
+        "      inputs = self.tokenizer.encode_plus(\n",
+        "          title,\n",
+        "          None,\n",
+        "          add_special_tokens=True,\n",
+        "          max_length=self.max_len,\n",
+        "          padding='max_length',\n",
+        "          return_token_type_ids=True,\n",
+        "          truncation=True,\n",
+        "          return_attention_mask=True,\n",
+        "          return_tensors='pt'\n",
+        "      )\n",
+        "\n",
+        "      # Ensure targets are numeric and handle missing values\n",
+        "      targets = self.targets[index].astype(np.float32)  # Convert to float32 if not already\n",
+        "\n",
+        "      return {\n",
+        "          'input_ids': inputs['input_ids'].flatten(),\n",
+        "          'attention_mask': inputs['attention_mask'].flatten(),\n",
+        "          'token_type_ids': inputs[\"token_type_ids\"].flatten(),\n",
+        "          'targets': torch.FloatTensor(targets),\n",
+        "          'title': title\n",
+        "      }\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 15,
+      "metadata": {
+        "id": "9sR7CJKxlg7u"
+      },
+      "outputs": [],
+      "source": [
+        "target_list = list(df.columns)\n",
+        "target_list = target_list[1:]"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 16,
+      "metadata": {
+        "id": "byW42KYsmCg3"
+      },
+      "outputs": [],
+      "source": [
+        "train_dataset = CustomDataset(df_train, tokenizer, MAX_LEN, target_list)\n",
+        "valid_dataset = CustomDataset(df_valid, tokenizer, MAX_LEN, target_list)\n",
+        "test_dataset = CustomDataset(df_test, tokenizer, MAX_LEN, target_list)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 17,
+      "metadata": {
+        "id": "fgLTRgHcobzb"
+      },
+      "outputs": [],
+      "source": [
+        "# Data loaders\n",
+        "train_data_loader = torch.utils.data.DataLoader(train_dataset,\n",
+        "    batch_size=TRAIN_BATCH_SIZE,\n",
+        "    shuffle=True,\n",
+        "    num_workers=0\n",
+        ")\n",
+        "\n",
+        "val_data_loader = torch.utils.data.DataLoader(valid_dataset,\n",
+        "    batch_size=VALID_BATCH_SIZE,\n",
+        "    shuffle=False,\n",
+        "    num_workers=0\n",
+        ")\n",
+        "\n",
+        "test_data_loader = torch.utils.data.DataLoader(test_dataset,\n",
+        "    batch_size=TEST_BATCH_SIZE,\n",
+        "    shuffle=False,\n",
+        "    num_workers=0\n",
+        ")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 18,
+      "metadata": {
+        "id": "MGrDBR7lokSI"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "BERTClass(\n",
+              "  (bert_model): BertModel(\n",
+              "    (embeddings): BertEmbeddings(\n",
+              "      (word_embeddings): Embedding(30522, 768, padding_idx=0)\n",
+              "      (position_embeddings): Embedding(512, 768)\n",
+              "      (token_type_embeddings): Embedding(2, 768)\n",
+              "      (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)\n",
+              "      (dropout): Dropout(p=0.1, inplace=False)\n",
+              "    )\n",
+              "    (encoder): BertEncoder(\n",
+              "      (layer): ModuleList(\n",
+              "        (0-11): 12 x BertLayer(\n",
+              "          (attention): BertAttention(\n",
+              "            (self): BertSelfAttention(\n",
+              "              (query): Linear(in_features=768, out_features=768, bias=True)\n",
+              "              (key): Linear(in_features=768, out_features=768, bias=True)\n",
+              "              (value): Linear(in_features=768, out_features=768, bias=True)\n",
+              "              (dropout): Dropout(p=0.1, inplace=False)\n",
+              "            )\n",
+              "            (output): BertSelfOutput(\n",
+              "              (dense): Linear(in_features=768, out_features=768, bias=True)\n",
+              "              (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)\n",
+              "              (dropout): Dropout(p=0.1, inplace=False)\n",
+              "            )\n",
+              "          )\n",
+              "          (intermediate): BertIntermediate(\n",
+              "            (dense): Linear(in_features=768, out_features=3072, bias=True)\n",
+              "            (intermediate_act_fn): GELUActivation()\n",
+              "          )\n",
+              "          (output): BertOutput(\n",
+              "            (dense): Linear(in_features=3072, out_features=768, bias=True)\n",
+              "            (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)\n",
+              "            (dropout): Dropout(p=0.1, inplace=False)\n",
+              "          )\n",
+              "        )\n",
+              "      )\n",
+              "    )\n",
+              "    (pooler): BertPooler(\n",
+              "      (dense): Linear(in_features=768, out_features=768, bias=True)\n",
+              "      (activation): Tanh()\n",
+              "    )\n",
+              "  )\n",
+              "  (dropout): Dropout(p=0.3, inplace=False)\n",
+              "  (linear): Linear(in_features=768, out_features=27, bias=True)\n",
+              "  (act): Softmax(dim=-1)\n",
+              ")"
+            ]
+          },
+          "execution_count": 18,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "class BERTClass(torch.nn.Module):\n",
+        "    def __init__(self):\n",
+        "        super(BERTClass, self).__init__()\n",
+        "        self.bert_model = BertModel.from_pretrained('bert-base-uncased', return_dict=True)\n",
+        "        self.dropout = torch.nn.Dropout(0.3)\n",
+        "        self.linear = torch.nn.Linear(768, 3*9)\n",
+        "        self.act = torch.nn.Softmax(dim = -1)\n",
+        "    def forward(self, input_ids, attn_mask, token_type_ids):\n",
+        "        output = self.bert_model(\n",
+        "            input_ids,\n",
+        "            attention_mask=attn_mask,\n",
+        "            token_type_ids=token_type_ids\n",
+        "        )\n",
+        "        output_dropout = self.dropout(output.pooler_output)\n",
+        "        output = self.linear(output_dropout)\n",
+        "        output = output.reshape(output.shape[0],9, 3)\n",
+        "        return self.act(output)\n",
+        "\n",
+        "model = BERTClass()\n",
+        "\n",
+        "# # Freezing BERT layers: (tested, weaker convergence)\n",
+        "# for param in model.bert_model.parameters():\n",
+        "#     param.requires_grad = False\n",
+        "\n",
+        "model.to(device)\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 19,
+      "metadata": {
+        "id": "x1UQdPu1r4tP"
+      },
+      "outputs": [],
+      "source": [
+        "\n",
+        "# BCEWithLogitsLoss combines a Sigmoid layer and the BCELoss in one single class.\n",
+        "# This version is more numerically stable than using a plain Sigmoid followed\n",
+        "# by a BCELoss as, by combining the operations into one layer,\n",
+        "# we take advantage of the log-sum-exp trick for numerical stability.\n",
+        "loss_fn = torch.nn.CrossEntropyLoss()"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 20,
+      "metadata": {
+        "id": "HIfD8jeWrGBL"
+      },
+      "outputs": [
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/transformers/optimization.py:521: FutureWarning: This implementation of AdamW is deprecated and will be removed in a future version. Use the PyTorch implementation torch.optim.AdamW instead, or set `no_deprecation_warning=True` to disable this warning\n",
+            "  warnings.warn(\n"
+          ]
+        }
+      ],
+      "source": [
+        "from transformers import AdamW\n",
+        "\n",
+        "# define the optimizer\n",
+        "optimizer = AdamW(model.parameters(), lr = 1e-5)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 21,
+      "metadata": {
+        "id": "u3HDoTxBo0Eg"
+      },
+      "outputs": [],
+      "source": [
+        "from tqdm.notebook import tqdm\n",
+        "def train_model(training_loader, model, optimizer):\n",
+        "\n",
+        "    losses = []\n",
+        "    correct_predictions = 0\n",
+        "    num_samples = 0\n",
+        "    # set model to training mode (activate droput, batch norm)\n",
+        "    model.train()\n",
+        "    # initialize the progress bar\n",
+        "\n",
+        "    for ind, data in enumerate(training_loader):\n",
+        "        print(f\"\\r [{ind}/{len(training_loader)} completed]\",end = '  ')\n",
+        "        ids = data['input_ids'].to(device, dtype = torch.long)\n",
+        "        mask = data['attention_mask'].to(device, dtype = torch.long)\n",
+        "        token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)\n",
+        "        targets = data['targets'].to(device, dtype = torch.long)\n",
+        "\n",
+        "        # forward\n",
+        "        outputs = model(ids, mask, token_type_ids) # (batch,predict)=(32,8)\n",
+        "        # display(outputs,targets)\n",
+        "        loss = loss_fn(outputs.view(-1,3), targets.view(-1))\n",
+        "        losses.append(loss.item())\n",
+        "        # training accuracy, apply sigmoid, round (apply thresh 0.5)\n",
+        "        outputs = torch.argmax(outputs,dim = -1).cpu().detach().numpy()\n",
+        "        targets = targets.cpu().detach().numpy()\n",
+        "        correct_predictions += np.sum(outputs==targets)\n",
+        "        num_samples += targets.size   # total number of elements in the 2D array\n",
+        "\n",
+        "        # backward\n",
+        "        optimizer.zero_grad()\n",
+        "        loss.backward()\n",
+        "        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)\n",
+        "        # grad descent step\n",
+        "        optimizer.step()\n",
+        "\n",
+        "    # returning: trained model, model accuracy, mean loss\n",
+        "    return model, float(correct_predictions)/num_samples, np.mean(losses)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 22,
+      "metadata": {
+        "id": "imCUKWkxo_R2"
+      },
+      "outputs": [],
+      "source": [
+        "from sklearn.metrics import f1_score, precision_score, recall_score\n",
+        "def eval_model(loader, model, loss_fn, device, target_list, threshold=0.5):\n",
+        "    model.eval()\n",
+        "    final_targets = []\n",
+        "    final_outputs = []\n",
+        "\n",
+        "    with torch.no_grad():\n",
+        "        total_loss = 0\n",
+        "        for data in loader:\n",
+        "            ids = data['input_ids'].to(device, dtype=torch.long)\n",
+        "            mask = data['attention_mask'].to(device, dtype=torch.long)\n",
+        "            token_type_ids = data['token_type_ids'].to(device, dtype=torch.long)\n",
+        "            targets = data['targets'].to(device, dtype=torch.long)\n",
+        "\n",
+        "            outputs = model(ids, mask, token_type_ids)\n",
+        "            loss = loss_fn(outputs.view(-1,3), targets.view(-1))\n",
+        "            total_loss += loss.item()\n",
+        "\n",
+        "            outputs = torch.argmax(outputs,dim=-1).cpu().numpy()  # Binary conversion\n",
+        "            final_outputs.append(outputs)\n",
+        "            final_targets.append(targets.cpu().numpy())  # Ensure binary format\n",
+        "\n",
+        "        final_outputs = np.vstack(final_outputs)\n",
+        "        final_targets = np.vstack(final_targets)\n",
+        "        \n",
+        "        # Calculate accuracy and F1 score for multilabel classification\n",
+        "        accuracies = (final_outputs == final_targets).mean(axis=0)\n",
+        "        precision = precision_score(final_outputs > 0.5,final_targets > 0.5,average= None)\n",
+        "        recall = recall_score(final_outputs > 0.5,final_targets > 0.5,average= None)\n",
+        "\n",
+        "        f1_score_ = f1_score(final_outputs > 0.5,final_targets > 0.5,average= None)\n",
+        "        \n",
+        "    \n",
+        "        \n",
+        "\n",
+        "            \n",
+        "\n",
+        "    mean_loss = total_loss / len(loader)\n",
+        "    return precision, recall, f1_score_, accuracies, mean_loss, target_list\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 23,
+      "metadata": {
+        "id": "LhCBN_0upOcK"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Epoch 1/5\n",
+            " [236/237 completed]  "
+          ]
+        },
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1509: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.\n",
+            "  _warn_prf(average, modifier, f\"{metric.capitalize()} is\", len(result))\n",
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1509: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.\n",
+            "  _warn_prf(average, modifier, f\"{metric.capitalize()} is\", len(result))\n"
+          ]
+        },
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Train Loss: 0.8776, Validation Loss: 0.8089\n"
+          ]
+        },
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1509: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.\n",
+            "  _warn_prf(average, modifier, f\"{metric.capitalize()} is\", len(result))\n",
+            "/tmp/ipykernel_20099/74604800.py:25: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.\n",
+            "  results_df = pd.concat([results_df, epoch_results], ignore_index=True)\n"
+          ]
+        },
+        {
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>Epoch</th>\n",
+              "      <th>Label</th>\n",
+              "      <th>Train Accuracy</th>\n",
+              "      <th>Test Accuracy</th>\n",
+              "      <th>Train precision</th>\n",
+              "      <th>Test precision</th>\n",
+              "      <th>Train recall</th>\n",
+              "      <th>Test recall</th>\n",
+              "      <th>Train f1_score</th>\n",
+              "      <th>Test f1_score</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Service</td>\n",
+              "      <td>0.894987</td>\n",
+              "      <td>0.881773</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>0.934301</td>\n",
+              "      <td>0.918719</td>\n",
+              "      <td>0.966035</td>\n",
+              "      <td>0.957638</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Negligence</td>\n",
+              "      <td>0.578100</td>\n",
+              "      <td>0.599754</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Behaviour</td>\n",
+              "      <td>0.587863</td>\n",
+              "      <td>0.559113</td>\n",
+              "      <td>0.699588</td>\n",
+              "      <td>0.666667</td>\n",
+              "      <td>0.582441</td>\n",
+              "      <td>0.559356</td>\n",
+              "      <td>0.635663</td>\n",
+              "      <td>0.608315</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Cleanliness</td>\n",
+              "      <td>0.875726</td>\n",
+              "      <td>0.873153</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Pharmacy</td>\n",
+              "      <td>0.944591</td>\n",
+              "      <td>0.928571</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>5</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Unprofessionalism</td>\n",
+              "      <td>0.481266</td>\n",
+              "      <td>0.486453</td>\n",
+              "      <td>0.107903</td>\n",
+              "      <td>0.097285</td>\n",
+              "      <td>0.747541</td>\n",
+              "      <td>0.716667</td>\n",
+              "      <td>0.188586</td>\n",
+              "      <td>0.171315</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>6</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Inefficiency</td>\n",
+              "      <td>0.795778</td>\n",
+              "      <td>0.822660</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>7</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Unavailibility</td>\n",
+              "      <td>0.878628</td>\n",
+              "      <td>0.881773</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>8</th>\n",
+              "      <td>1</td>\n",
+              "      <td>Billing</td>\n",
+              "      <td>0.763061</td>\n",
+              "      <td>0.743842</td>\n",
+              "      <td>0.032680</td>\n",
+              "      <td>0.041667</td>\n",
+              "      <td>0.833333</td>\n",
+              "      <td>0.900000</td>\n",
+              "      <td>0.062893</td>\n",
+              "      <td>0.079646</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "  Epoch              Label  Train Accuracy  Test Accuracy  Train precision  \\\n",
+              "0     1            Service        0.894987       0.881773         1.000000   \n",
+              "1     1         Negligence        0.578100       0.599754         0.000000   \n",
+              "2     1          Behaviour        0.587863       0.559113         0.699588   \n",
+              "3     1        Cleanliness        0.875726       0.873153         0.000000   \n",
+              "4     1           Pharmacy        0.944591       0.928571         0.000000   \n",
+              "5     1  Unprofessionalism        0.481266       0.486453         0.107903   \n",
+              "6     1       Inefficiency        0.795778       0.822660         0.000000   \n",
+              "7     1     Unavailibility        0.878628       0.881773         0.000000   \n",
+              "8     1            Billing        0.763061       0.743842         0.032680   \n",
+              "\n",
+              "   Test precision  Train recall  Test recall  Train f1_score  Test f1_score  \n",
+              "0        1.000000      0.934301     0.918719        0.966035       0.957638  \n",
+              "1        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "2        0.666667      0.582441     0.559356        0.635663       0.608315  \n",
+              "3        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "4        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "5        0.097285      0.747541     0.716667        0.188586       0.171315  \n",
+              "6        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "7        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "8        0.041667      0.833333     0.900000        0.062893       0.079646  "
+            ]
+          },
+          "metadata": {},
+          "output_type": "display_data"
+        },
+        {
+          "data": {
+            "text/plain": [
+              "Train Accuracy     0.755556\n",
+              "Test Accuracy      0.753010\n",
+              "Train precision    0.204464\n",
+              "Test precision     0.200624\n",
+              "Train recall       0.344180\n",
+              "Test recall        0.343860\n",
+              "Train f1_score     0.205908\n",
+              "Test f1_score      0.201879\n",
+              "dtype: float64"
+            ]
+          },
+          "metadata": {},
+          "output_type": "display_data"
+        },
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Epoch 2/5\n",
+            " [236/237 completed]  "
+          ]
+        },
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1509: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.\n",
+            "  _warn_prf(average, modifier, f\"{metric.capitalize()} is\", len(result))\n",
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1509: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.\n",
+            "  _warn_prf(average, modifier, f\"{metric.capitalize()} is\", len(result))\n"
+          ]
+        },
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Train Loss: 0.7888, Validation Loss: 0.7756\n"
+          ]
+        },
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/mnt/Data/sarmistha/Sarmistha/myenv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1509: UndefinedMetricWarning: Recall is ill-defined and being set to 0.0 in labels with no true samples. Use `zero_division` parameter to control this behavior.\n",
+            "  _warn_prf(average, modifier, f\"{metric.capitalize()} is\", len(result))\n"
+          ]
+        },
+        {
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>Epoch</th>\n",
+              "      <th>Label</th>\n",
+              "      <th>Train Accuracy</th>\n",
+              "      <th>Test Accuracy</th>\n",
+              "      <th>Train precision</th>\n",
+              "      <th>Test precision</th>\n",
+              "      <th>Train recall</th>\n",
+              "      <th>Test recall</th>\n",
+              "      <th>Train f1_score</th>\n",
+              "      <th>Test f1_score</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>9</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Service</td>\n",
+              "      <td>0.905013</td>\n",
+              "      <td>0.891626</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>0.934301</td>\n",
+              "      <td>0.918719</td>\n",
+              "      <td>0.966035</td>\n",
+              "      <td>0.957638</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>10</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Negligence</td>\n",
+              "      <td>0.608971</td>\n",
+              "      <td>0.608374</td>\n",
+              "      <td>0.140713</td>\n",
+              "      <td>0.123077</td>\n",
+              "      <td>0.696594</td>\n",
+              "      <td>0.571429</td>\n",
+              "      <td>0.234131</td>\n",
+              "      <td>0.202532</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>11</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Behaviour</td>\n",
+              "      <td>0.649604</td>\n",
+              "      <td>0.597291</td>\n",
+              "      <td>0.511317</td>\n",
+              "      <td>0.441247</td>\n",
+              "      <td>0.728739</td>\n",
+              "      <td>0.664260</td>\n",
+              "      <td>0.600967</td>\n",
+              "      <td>0.530259</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>12</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Cleanliness</td>\n",
+              "      <td>0.875726</td>\n",
+              "      <td>0.873153</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>13</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Pharmacy</td>\n",
+              "      <td>0.944591</td>\n",
+              "      <td>0.928571</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>14</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Unprofessionalism</td>\n",
+              "      <td>0.678100</td>\n",
+              "      <td>0.649015</td>\n",
+              "      <td>0.688121</td>\n",
+              "      <td>0.653846</td>\n",
+              "      <td>0.740326</td>\n",
+              "      <td>0.701456</td>\n",
+              "      <td>0.713270</td>\n",
+              "      <td>0.676815</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>15</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Inefficiency</td>\n",
+              "      <td>0.795778</td>\n",
+              "      <td>0.822660</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>16</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Unavailibility</td>\n",
+              "      <td>0.878628</td>\n",
+              "      <td>0.881773</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>17</th>\n",
+              "      <td>2</td>\n",
+              "      <td>Billing</td>\n",
+              "      <td>0.793668</td>\n",
+              "      <td>0.779557</td>\n",
+              "      <td>0.249455</td>\n",
+              "      <td>0.263889</td>\n",
+              "      <td>0.741100</td>\n",
+              "      <td>0.750000</td>\n",
+              "      <td>0.373268</td>\n",
+              "      <td>0.390411</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "   Epoch              Label  Train Accuracy  Test Accuracy  Train precision  \\\n",
+              "9      2            Service        0.905013       0.891626         1.000000   \n",
+              "10     2         Negligence        0.608971       0.608374         0.140713   \n",
+              "11     2          Behaviour        0.649604       0.597291         0.511317   \n",
+              "12     2        Cleanliness        0.875726       0.873153         0.000000   \n",
+              "13     2           Pharmacy        0.944591       0.928571         0.000000   \n",
+              "14     2  Unprofessionalism        0.678100       0.649015         0.688121   \n",
+              "15     2       Inefficiency        0.795778       0.822660         0.000000   \n",
+              "16     2     Unavailibility        0.878628       0.881773         0.000000   \n",
+              "17     2            Billing        0.793668       0.779557         0.249455   \n",
+              "\n",
+              "    Test precision  Train recall  Test recall  Train f1_score  Test f1_score  \n",
+              "9         1.000000      0.934301     0.918719        0.966035       0.957638  \n",
+              "10        0.123077      0.696594     0.571429        0.234131       0.202532  \n",
+              "11        0.441247      0.728739     0.664260        0.600967       0.530259  \n",
+              "12        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "13        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "14        0.653846      0.740326     0.701456        0.713270       0.676815  \n",
+              "15        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "16        0.000000      0.000000     0.000000        0.000000       0.000000  \n",
+              "17        0.263889      0.741100     0.750000        0.373268       0.390411  "
+            ]
+          },
+          "metadata": {},
+          "output_type": "display_data"
+        },
+        {
+          "data": {
+            "text/plain": [
+              "Train Accuracy     0.792231\n",
+              "Test Accuracy      0.781336\n",
+              "Train precision    0.287734\n",
+              "Test precision     0.275784\n",
+              "Train recall       0.426784\n",
+              "Test recall        0.400652\n",
+              "Train f1_score     0.320852\n",
+              "Test f1_score      0.306406\n",
+              "dtype: float64"
+            ]
+          },
+          "metadata": {},
+          "output_type": "display_data"
+        },
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Epoch 3/5\n",
+            " [112/237 completed]  "
+          ]
+        },
+        {
+          "ename": "KeyboardInterrupt",
+          "evalue": "",
+          "output_type": "error",
+          "traceback": [
+            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+            "\u001b[0;31mKeyboardInterrupt\u001b[0m                         Traceback (most recent call last)",
+            "Cell \u001b[0;32mIn[23], line 6\u001b[0m\n\u001b[1;32m      4\u001b[0m \u001b[38;5;28;01mfor\u001b[39;00m epoch \u001b[38;5;129;01min\u001b[39;00m \u001b[38;5;28mrange\u001b[39m(\u001b[38;5;241m1\u001b[39m, EPOCHS\u001b[38;5;241m+\u001b[39m\u001b[38;5;241m1\u001b[39m):\n\u001b[1;32m      5\u001b[0m     \u001b[38;5;28mprint\u001b[39m(\u001b[38;5;124mf\u001b[39m\u001b[38;5;124m'\u001b[39m\u001b[38;5;124mEpoch \u001b[39m\u001b[38;5;132;01m{\u001b[39;00mepoch\u001b[38;5;132;01m}\u001b[39;00m\u001b[38;5;124m/\u001b[39m\u001b[38;5;132;01m{\u001b[39;00mEPOCHS\u001b[38;5;132;01m}\u001b[39;00m\u001b[38;5;124m'\u001b[39m)\n\u001b[0;32m----> 6\u001b[0m     _, _, train_loss \u001b[38;5;241m=\u001b[39m \u001b[43mtrain_model\u001b[49m\u001b[43m(\u001b[49m\u001b[43mtrain_data_loader\u001b[49m\u001b[43m,\u001b[49m\u001b[43m \u001b[49m\u001b[43mmodel\u001b[49m\u001b[43m,\u001b[49m\u001b[43m \u001b[49m\u001b[43moptimizer\u001b[49m\u001b[43m)\u001b[49m\n\u001b[1;32m      7\u001b[0m     train_precision, train_recall, train_f1_score, train_accuracies, _, _ \u001b[38;5;241m=\u001b[39m eval_model(train_data_loader, model, loss_fn, device, target_list)\n\u001b[1;32m      8\u001b[0m     val_precision, val_recall, val_f1_score, val_accuracies, val_loss, labels \u001b[38;5;241m=\u001b[39m eval_model(val_data_loader, model, loss_fn, device, target_list)\n",
+            "Cell \u001b[0;32mIn[21], line 22\u001b[0m, in \u001b[0;36mtrain_model\u001b[0;34m(training_loader, model, optimizer)\u001b[0m\n\u001b[1;32m     20\u001b[0m \u001b[38;5;66;03m# display(outputs,targets)\u001b[39;00m\n\u001b[1;32m     21\u001b[0m loss \u001b[38;5;241m=\u001b[39m loss_fn(outputs\u001b[38;5;241m.\u001b[39mview(\u001b[38;5;241m-\u001b[39m\u001b[38;5;241m1\u001b[39m,\u001b[38;5;241m3\u001b[39m), targets\u001b[38;5;241m.\u001b[39mview(\u001b[38;5;241m-\u001b[39m\u001b[38;5;241m1\u001b[39m))\n\u001b[0;32m---> 22\u001b[0m losses\u001b[38;5;241m.\u001b[39mappend(\u001b[43mloss\u001b[49m\u001b[38;5;241;43m.\u001b[39;49m\u001b[43mitem\u001b[49m\u001b[43m(\u001b[49m\u001b[43m)\u001b[49m)\n\u001b[1;32m     23\u001b[0m \u001b[38;5;66;03m# training accuracy, apply sigmoid, round (apply thresh 0.5)\u001b[39;00m\n\u001b[1;32m     24\u001b[0m outputs \u001b[38;5;241m=\u001b[39m torch\u001b[38;5;241m.\u001b[39margmax(outputs,dim \u001b[38;5;241m=\u001b[39m \u001b[38;5;241m-\u001b[39m\u001b[38;5;241m1\u001b[39m)\u001b[38;5;241m.\u001b[39mcpu()\u001b[38;5;241m.\u001b[39mdetach()\u001b[38;5;241m.\u001b[39mnumpy()\n",
+            "\u001b[0;31mKeyboardInterrupt\u001b[0m: "
+          ]
+        },
+        {
+          "ename": "",
+          "evalue": "",
+          "output_type": "error",
+          "traceback": [
+            "\u001b[1;31mThe Kernel crashed while executing code in the current cell or a previous cell. \n",
+            "\u001b[1;31mPlease review the code in the cell(s) to identify a possible cause of the failure. \n",
+            "\u001b[1;31mClick <a href='https://aka.ms/vscodeJupyterKernelCrash'>here</a> for more info. \n",
+            "\u001b[1;31mView Jupyter <a href='command:jupyter.viewOutput'>log</a> for further details."
+          ]
+        }
+      ],
+      "source": [
+        "columns = ['Epoch', 'Label', 'Train Accuracy', 'Test Accuracy', 'Train precision','Test precision','Train recall','Test recall','Train f1_score','Test f1_score']\n",
+        "results_df = pd.DataFrame(columns=columns)\n",
+        "# Modify your training and validation loops to append results to the DataFrame\n",
+        "for epoch in range(1, EPOCHS+1):\n",
+        "    print(f'Epoch {epoch}/{EPOCHS}')\n",
+        "    _, _, train_loss = train_model(train_data_loader, model, optimizer)\n",
+        "    train_precision, train_recall, train_f1_score, train_accuracies, _, _ = eval_model(train_data_loader, model, loss_fn, device, target_list)\n",
+        "    val_precision, val_recall, val_f1_score, val_accuracies, val_loss, labels = eval_model(val_data_loader, model, loss_fn, device, target_list)\n",
+        "    test_precision, test_recall, test_f1_score, test_accuracies, _, _= eval_model(test_data_loader, model, loss_fn, device, target_list)\n",
+        "\n",
+        "    epoch_results = pd.DataFrame({\n",
+        "        'Epoch': epoch,\n",
+        "        'Label': labels,\n",
+        "        'Train Accuracy': train_accuracies,\n",
+        "        'Test Accuracy': test_accuracies,\n",
+        "        'Train precision': train_precision,\n",
+        "        'Test precision': test_precision,\n",
+        "        'Train recall': train_recall,\n",
+        "        'Test recall': test_recall,\n",
+        "        'Train f1_score': train_f1_score,\n",
+        "        'Test f1_score': test_f1_score,\n",
+        "\n",
+        "    })\n",
+        "\n",
+        "    results_df = pd.concat([results_df, epoch_results], ignore_index=True)\n",
+        "\n",
+        "    # Optionally print the results for each epoch\n",
+        "    print(f'Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')\n",
+        "    display(results_df[results_df['Epoch'] == epoch])  # Display only the current epoch results in tabular form\n",
+        "    display(results_df[results_df['Epoch'] == epoch][['Train Accuracy','Test Accuracy','Train precision','Test precision','Train recall','Test recall','Train f1_score','Test f1_score']].mean(axis=0))\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "aAOPcmD0kA4c"
+      },
+      "outputs": [
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/tmp/ipykernel_18820/117140271.py:1: FutureWarning: Series.__getitem__ treating keys as positions is deprecated. In a future version, integer keys will always be treated as labels (consistent with DataFrame behavior). To access a value by position, use `ser.iloc[pos]`\n",
+            "  test_text = df.iloc[0][0]\n"
+          ]
+        },
+        {
+          "data": {
+            "text/plain": [
+              "'Very poor hospital no care kabhi mat jana if u have 6 hours free time then u can go this hospital only for number he give u 6 hours and u must be setting other wise not give number minimum 6 hours'"
+            ]
+          },
+          "execution_count": 24,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "test_text = df.iloc[0][0]\n",
+        "test_text"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "tensor([[[0.0026, 0.0031, 0.9943],\n",
+            "         [0.5666, 0.0091, 0.4243],\n",
+            "         [0.0146, 0.0031, 0.9822],\n",
+            "         [0.9894, 0.0032, 0.0074],\n",
+            "         [0.9945, 0.0026, 0.0029],\n",
+            "         [0.2025, 0.0096, 0.7880],\n",
+            "         [0.9929, 0.0035, 0.0036],\n",
+            "         [0.9928, 0.0038, 0.0034],\n",
+            "         [0.9959, 0.0015, 0.0026]]], device='cuda:0')\n",
+            "[('Service', 'Non Complaint'), ('Negligence', 'Unknown'), ('Behaviour', 'Non Complaint'), ('Cleanliness', 'Unknown'), ('Pharmacy', 'Unknown'), ('Unprofessionalism', 'Non Complaint'), ('Inefficiency', 'Unknown'), ('Unavailibility', 'Unknown'), ('Billing', 'Unknown')]\n"
+          ]
+        },
+        {
+          "ename": "",
+          "evalue": "",
+          "output_type": "error",
+          "traceback": [
+            "\u001b[1;31mThe Kernel crashed while executing code in the current cell or a previous cell. \n",
+            "\u001b[1;31mPlease review the code in the cell(s) to identify a possible cause of the failure. \n",
+            "\u001b[1;31mClick <a href='https://aka.ms/vscodeJupyterKernelCrash'>here</a> for more info. \n",
+            "\u001b[1;31mView Jupyter <a href='command:jupyter.viewOutput'>log</a> for further details."
+          ]
+        }
+      ],
+      "source": [
+        "def predict_aspect(review, model, tokenizer, max_len, device):\n",
+        "    model.eval()  # Set the model to evaluation mode.\n",
+        "\n",
+        "    # Tokenize the input review\n",
+        "    inputs = tokenizer.encode_plus(\n",
+        "        review,\n",
+        "        add_special_tokens=True,\n",
+        "        max_length=max_len,\n",
+        "        padding='max_length',\n",
+        "        return_token_type_ids=True,\n",
+        "        truncation=True,\n",
+        "        return_attention_mask=True,\n",
+        "        return_tensors='pt'\n",
+        "    )\n",
+        "\n",
+        "    # Move tensors to the device\n",
+        "    ids = inputs['input_ids'].to(device)\n",
+        "    mask = inputs['attention_mask'].to(device)\n",
+        "    token_type_ids = inputs['token_type_ids'].to(device)\n",
+        "\n",
+        "    with torch.no_grad():  # No gradients need to be calculated\n",
+        "        outputs = model(ids, mask, token_type_ids)\n",
+        "        print(outputs)\n",
+        "        predictions = torch.argmax(outputs, dim=-1)  # Get the highest probability labels\n",
+        "        predictions = predictions.cpu().numpy()[0]  # Move to cpu and convert to numpy\n",
+        "\n",
+        "    # Define the classes corresponding to your outputs\n",
+        "    aspect_classes = ['Unknown', 'Complaint', 'Non Complaint']  # Adjust these based on your specific output mapping\n",
+        "\n",
+        "    # Map numeric predictions back to labels\n",
+        "    predicted_aspects = []\n",
+        "    for i, aspect in enumerate(target_list):  # Assuming the first column is not an aspect label\n",
+        "        predicted_aspects.append((aspect, aspect_classes[predictions[i]]))\n",
+        "\n",
+        "    return predicted_aspects\n",
+        "\n",
+        "# Example of using the predict_aspect function\n",
+        "review_text = \"Doctors are very friendly towards the patients.All the staffs cordinate very well.Hospital was clean and tidy.And all of them was so helpful in our need.\"\n",
+        "predicted_aspects = predict_aspect(review_text, model, tokenizer, MAX_LEN, device)\n",
+        "print(predicted_aspects)\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {},
+      "outputs": [],
+      "source": []
+    }
+  ],
+  "metadata": {
+    "accelerator": "GPU",
+    "colab": {
+      "gpuType": "T4",
+      "provenance": []
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.10.10"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
